@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Orkas
+GenericName=AI Agent Team
+Comment=Turn your goals into finished work with a team of AI agents
+Exec=orkas %U
+Icon=${SNAP}/meta/gui/orkas.png
+Terminal=false
+Categories=Office;Utility;
+Keywords=ai;agent;assistant;llm;automation;research;
+MimeType=x-scheme-handler/orkas;
+StartupNotify=true
+StartupWMClass=orkas

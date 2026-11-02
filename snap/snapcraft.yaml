@@ -1,0 +1,137 @@
+name: orkas
+base: core26
+version: '2026.10.27'
+title: Orkas
+icon: snap/gui/orkas.png
+summary: Local-first team of AI agents that turns your goals into finished work
+description: |
+  Orkas is a multi-agent desktop app. Tell the Commander what you need: it
+  plans the work and hands it to built-in specialists for research,
+  writing, slide decks, office documents, images, video, voice, UI and
+  code. Projects keep goals, rules, memory and files between
+  conversations, to-dos and Auto-advance keep work moving, and scheduled
+  automations repeat routine tasks. A local document Library answers with
+  citations.
+
+  Bring your own model: Claude, OpenAI, Gemini, DeepSeek, Kimi, GLM, Qwen,
+  MiniMax, Doubao, or any OpenAI- or Anthropic-compatible endpoint such as
+  a local Ollama or LM Studio server. This is the open-source build, with
+  no Orkas account, cloud sync or hosted Orkas model.
+
+  Agent commands run inside the snap with bash, the core utilities, git,
+  ripgrep, curl, jq and the Python, Node and FFmpeg runtimes Orkas
+  bundles. Claude Code, Codex and other CLI agents installed on your
+  system cannot be used. Data is stored in ~/snap/orkas/common. Updates
+  are managed by snapd.
+license: MIT
+grade: stable
+confinement: strict
+website: https://orkas.ai
+source-code:
+  - https://github.com/Orkas-AI/Orkas
+  - https://github.com/sidalit/orkas-snap
+issues:
+  - https://github.com/Orkas-AI/Orkas/issues
+  - https://github.com/sidalit/orkas-snap/issues
+contact: https://github.com/sidalit/orkas-snap/issues
+
+platforms:
+  amd64:
+
+apps:
+  orkas:
+    command: bin/orkas
+    extensions: [gnome]
+    plugs:
+      - audio-playback
+      - audio-record
+      - browser-support
+      - camera
+      - home
+      - network
+      # Local proxy listener on 127.0.0.1.
+      - network-bind
+      - removable-media
+      - unity7
+    environment:
+      # The host login shell may not exist inside the snap.
+      SHELL: /bin/bash
+      GIT_EXEC_PATH: $SNAP/usr/lib/git-core
+      GIT_TEMPLATE_DIR: $SNAP/usr/share/git-core/templates
+      MAGIC: $SNAP/usr/lib/file/magic.mgc
+
+parts:
+  orkas:
+    plugin: nil
+    source: https://github.com/Orkas-AI/Orkas.git
+    source-tag: v$SNAPCRAFT_PROJECT_VERSION
+    source-depth: 1
+    build-snaps:
+      - node/24/stable
+    build-packages:
+      - build-essential
+      - ca-certificates
+      - git
+      - python3
+    stage-packages:
+      - curl
+      - file
+      - fontconfig
+      - git
+      - jq
+      - libgbm1
+      - patch
+      - ripgrep
+      - tree
+      - unzip
+      - xz-utils
+      - zip
+    build-environment:
+      - npm_config_update_notifier: 'false'
+    override-build: |
+      # Upstream supports Linux as a source run only (run.sh), so prepare the
+      # checkout the way run.sh does: locked npm tree, Electron, SQLite for
+      # Electron's ABI, and the pinned Python, uv, Node, FFmpeg, whisper.cpp,
+      # OfficeCLI and embedding-model resources, all digest-verified.
+      npm ci --no-audit --no-fund
+      node scripts/ensure-dev-dependencies.cjs
+
+      # Wayland app ID matching the snap's desktop entry.
+      node -e '
+        const fs = require("node:fs");
+        const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+        fs.writeFileSync("package.json", JSON.stringify({ ...pkg, desktopName: "orkas_orkas.desktop" }, null, 2) + "\n");
+      '
+
+      app="$CRAFT_PART_INSTALL/opt/orkas"
+      mkdir -p "$app/app/resources"
+      cp -a node_modules/electron/dist "$app/electron"
+      rm "$app/electron/chrome-sandbox"
+      npm prune --omit=dev --no-audit --no-fund
+      cp -a bootstrap.cjs package.json tsconfig.json bin scripts src node_modules "$app/app/"
+      cp -a resources/builtin resources/connectors resources/embedding-model \
+        resources/officecli resources/runtime resources/xls-reader "$app/app/resources/"
+      # Embeddings run on the CPU: drop the CUDA and TensorRT providers, whose
+      # libraries are not in the snap, and sharp's musl builds.
+      rm -rf "$app/app/src/main/native/phone_passkey" \
+        "$app/app/resources/embedding-model/"*.tar.gz \
+        "$app/app/node_modules/fastembed/node_modules/onnxruntime-node/bin/napi-v3/linux/x64/"libonnxruntime_providers_{cuda,tensorrt}.so \
+        "$app/app/node_modules/@img/"*-linuxmusl-x64
+
+      install -Dm644 LICENSE "$CRAFT_PART_INSTALL/usr/share/doc/orkas/LICENSE"
+
+  # core26's uutils timeout lives in /usr/lib/cargo/bin, which the strict
+  # AppArmor template does not let snaps execute. Ship GNU timeout first
+  # in PATH for agent commands.
+  timeout:
+    plugin: nil
+    stage-packages:
+      - gnu-coreutils
+    organize:
+      usr/bin/gnutimeout: usr/bin/timeout
+    prime:
+      - usr/bin/timeout
+
+  launcher:
+    plugin: dump
+    source: snap/local

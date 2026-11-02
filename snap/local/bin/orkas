@@ -1,0 +1,17 @@
+#!/bin/bash
+set -euo pipefail
+
+# Keep data, Python/Node package environments and caches out of revisioned
+# data, so refreshes do not copy them. The default agent workspace becomes
+# ~/snap/orkas/common/userWorkSpace.
+export ORKAS_WORKSPACE_ROOT="$SNAP_USER_COMMON/data"
+export XDG_CONFIG_HOME="$SNAP_USER_COMMON/.config"
+export XDG_CACHE_HOME="$SNAP_USER_COMMON/.cache"
+mkdir -p "$ORKAS_WORKSPACE_ROOT" "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME"
+
+# The GNOME extension points PYTHONPATH at its Python 3.14 modules, which
+# break the bundled Python 3.12 that agent commands inherit.
+unset PYTHONPATH
+
+# browser-support does not allow Chromium's sandbox; AppArmor confines the snap.
+exec "$SNAP/opt/orkas/electron/electron" "$SNAP/opt/orkas/app" --no-sandbox "$@"
