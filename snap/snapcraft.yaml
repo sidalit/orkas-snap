@@ -49,7 +49,6 @@ apps:
       - camera
       - home
       - network
-      # Local proxy listener on 127.0.0.1.
       - network-bind
       - removable-media
       - unity7
@@ -89,10 +88,7 @@ parts:
     build-environment:
       - npm_config_update_notifier: 'false'
     override-build: |
-      # Upstream supports Linux as a source run only (run.sh), so prepare the
-      # checkout the way run.sh does: locked npm tree, Electron, SQLite for
-      # Electron's ABI, and the pinned Python, uv, Node, FFmpeg, whisper.cpp,
-      # OfficeCLI and embedding-model resources, all digest-verified.
+      # Use upstream's Linux source preparation, including verified runtime assets.
       npm ci --no-audit --no-fund
       node scripts/ensure-dev-dependencies.cjs
 
@@ -111,18 +107,18 @@ parts:
       cp -a bootstrap.cjs package.json tsconfig.json bin scripts src node_modules "$app/app/"
       cp -a resources/builtin resources/connectors resources/embedding-model \
         resources/officecli resources/runtime resources/xls-reader "$app/app/resources/"
-      # Embeddings run on the CPU: drop the CUDA and TensorRT providers, whose
-      # libraries are not in the snap, and sharp's musl builds.
+      # Keep only the Linux x64 glibc CPU backends.
       rm -rf "$app/app/src/main/native/phone_passkey" \
         "$app/app/resources/embedding-model/"*.tar.gz \
+        "$app/app/node_modules/fastembed/node_modules/onnxruntime-node/bin/napi-v3/"{darwin,win32,linux/arm64} \
         "$app/app/node_modules/fastembed/node_modules/onnxruntime-node/bin/napi-v3/linux/x64/"libonnxruntime_providers_{cuda,tensorrt}.so \
-        "$app/app/node_modules/@img/"*-linuxmusl-x64
+        "$app/app/node_modules/@img/"*-linuxmusl-x64 \
+        "$app/app/node_modules/@napi-rs/canvas-linux-x64-musl" \
+        "$app/app/node_modules/@anush008/tokenizers-linux-x64-musl"
 
       install -Dm644 LICENSE "$CRAFT_PART_INSTALL/usr/share/doc/orkas/LICENSE"
 
-  # core26's uutils timeout lives in /usr/lib/cargo/bin, which the strict
-  # AppArmor template does not let snaps execute. Ship GNU timeout first
-  # in PATH for agent commands.
+  # core26's uutils timeout path is not executable under strict confinement.
   timeout:
     plugin: nil
     stage-packages:
