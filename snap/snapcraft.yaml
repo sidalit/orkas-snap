@@ -87,6 +87,7 @@ parts:
       - zip
     build-environment:
       - npm_config_update_notifier: 'false'
+      - ONNXRUNTIME_NODE_INSTALL_CUDA: skip
     override-build: |
       # Use upstream's Linux source preparation, including verified runtime assets.
       npm ci --no-audit --no-fund
@@ -111,7 +112,6 @@ parts:
       rm -rf "$app/app/src/main/native/phone_passkey" \
         "$app/app/resources/embedding-model/"*.tar.gz \
         "$app/app/node_modules/fastembed/node_modules/onnxruntime-node/bin/napi-v3/"{darwin,win32,linux/arm64} \
-        "$app/app/node_modules/fastembed/node_modules/onnxruntime-node/bin/napi-v3/linux/x64/"libonnxruntime_providers_{cuda,tensorrt}.so \
         "$app/app/node_modules/@img/"*-linuxmusl-x64 \
         "$app/app/node_modules/@napi-rs/canvas-linux-x64-musl" \
         "$app/app/node_modules/@anush008/tokenizers-linux-x64-musl"
