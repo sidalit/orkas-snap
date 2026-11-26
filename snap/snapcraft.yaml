@@ -1,6 +1,6 @@
 name: orkas
 base: core26
-version: '2026.10.27'
+version: '2026.11.26'
 title: Orkas
 icon: snap/gui/orkas.png
 summary: Local-first team of AI agents that turns your goals into finished work
